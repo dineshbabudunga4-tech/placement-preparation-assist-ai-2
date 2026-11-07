@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .problem-statement { color: #f8f9fa !important; font-size: 1.05rem; line-height: 1.6; }
+    .sample-box { background-color: #0f172a !important; color: #a5f3fc !important; border: 1px solid #334155; }
+</style>
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-white"><i class="fas fa-code"></i> Daily 5 Coding Practices</h2>
+            <p class="text-muted">Date: {{ today }} | Company: {{ company }} | Complete all 5 to maintain your streak!</p>
+            <a href="{{ url_for('compiler') }}" class="btn btn-outline-light btn-sm float-end"><i class="fas fa-terminal"></i> Open Full Compiler</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Sidebar -->
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white"><h5 class="mb-0">Today's Problems</h5></div>
+                <div class="list-group list-group-flush" id="questionList" role="tablist">
+                    {% for q in questions %}
+                    <a class="list-group-item list-group-item-action {% if loop.first %}active{% endif %}" data-bs-toggle="list" href="#q-{{ loop.index }}" role="tab">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>{{ loop.index }}. {{ q.problem_title }}</span>
+                            {% if q.question_id in solved_q_ids %}<span class="badge bg-success">Solved</span>{% else %}<span class="badge bg-light text-dark">New</span>{% endif %}
+                        </div>
+                        <small class="text-muted">{{ q.difficulty }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Content -->
+        <div class="col-md-9">
+            <div class="tab-content">
+                {% for q in questions %}
+                <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="q-{{ loop.index }}" role="tabpanel">
+                    
+                    <!-- Problem Details -->
+                    <div class="card shadow mb-3">
+                        <div class="card-header bg-info text-white d-flex justify-content-between">
+                            <h5 class="mb-0 text-white">{{ q.problem_title }}</h5>
+                            <span class="badge bg-dark">{{ q.difficulty }}</span>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="text-white">Problem Statement</h6>
+                            <p class="problem-statement">{{ q.problem_statement }}</p>
+                            <div class="row mt-3">
+                                <div class="col-md-6"><strong class="text-white">Sample Input</strong><pre class="sample-box p-2 rounded mt-1"><code>{{ q.sample_input }}</code></pre></div>
+                                <div class="col-md-6"><strong class="text-white">Sample Output</strong><pre class="sample-box p-2 rounded mt-1"><code>{{ q.sample_output }}</code></pre></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Code Editor -->
+                    <div class="card shadow mb-3">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 text-white">Your Code</h5>
+                            <div>
+                                <select class="form-select form-select-sm d-inline-block w-auto lang-select me-2">
+                                    <option value="python">Python</option>
+                                    <option value="javascript">JavaScript</option>
+                                    <option value="java">Java</option>
+                                    <option value="cpp">C++</option>
+                                </select>
+                                <button class="btn btn-warning btn-sm run-code-btn" data-qid="{{ q.question_id }}">▶ Run</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <textarea class="form-control code-editor" rows="10" placeholder="# Write your code here..." style="font-family: monospace; border: none; border-radius: 0; background: #1e1e1e; color: #d4d4d4;"></textarea>
+                        </div>
+                        <div class="card-footer d-flex justify-content-between align-items-center bg-dark border-secondary">
+                            <div class="output-area text-white small" style="max-width: 70%;"><em>Click Run to execute code</em></div>
+                            <button class="btn btn-primary submit-code-btn" data-qid="{{ q.question_id }}" data-title="{{ q.problem_title }}" data-company="{{ company }}">Submit Code</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// RUN BUTTON LOGIC
+document.querySelectorAll('.run-code-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const card = this.closest('.tab-pane');
+        const code = card.querySelector('.code-editor').value;
+        const language = card.querySelector('.lang-select').value;
+        const outputDiv = card.querySelector('.output-area');
+        
+        if (!code.trim()) { outputDiv.innerHTML = '<span class="text-warning">Write some code first!</span>'; return; }
+        
+        const originalText = this.innerHTML;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+        this.disabled = true;
+        
+        fetch('/run_practice_code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code, language: language })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                outputDiv.innerHTML = `<strong>Output:</strong><br><pre class="text-success mb-0">${data.output}</pre>`;
+            } else {
+                outputDiv.innerHTML = `<strong class="text-danger">Error:</strong><br><pre class="text-danger mb-1">${data.output}</pre><div class="alert alert-warning py-1 px-2 mb-0 mt-1"><small><strong>💡 AI:</strong> ${data.explanation}</small></div>`;
+            }
+        })
+        .catch(() => outputDiv.innerHTML = '<span class="text-danger">Failed to run code.</span>')
+        .finally(() => { this.innerHTML = originalText; this.disabled = false; });
+    });
+});
+
+// SUBMIT BUTTON LOGIC
+document.querySelectorAll('.submit-code-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const qid = this.dataset.qid;
+        const title = this.dataset.title;
+        const company = this.dataset.company;
+        const card = this.closest('.tab-pane');
+        const code = card.querySelector('.code-editor').value;
+        const language = card.querySelector('.lang-select').value;
+        const outputDiv = card.querySelector('.output-area');
+        
+        if (!code.trim()) { outputDiv.innerHTML = '<span class="text-warning">Write some code first!</span>'; return; }
+        
+        const originalText = this.innerText;
+        this.innerText = 'Submitting...'; this.disabled = true;
+        
+        fetch('/submit_daily_code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question_id: qid, title: title, company: company, code: code, language: language })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { outputDiv.innerHTML = `<span class="text-danger">${data.error}</span>`; } 
+            else {
+                outputDiv.innerHTML = '<span class="text-success">✅ Submitted!</span>';
+                this.innerText = 'Submitted ✅'; this.classList.replace('btn-primary', 'btn-success');
+            }
+        })
+        .catch(() => { outputDiv.innerHTML = '<span class="text-danger">Submission failed.</span>'; this.innerText = originalText; this.disabled = false; });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background: rgba(30, 41, 59, 0.95); border-bottom: 2px solid #8b5cf6;">
+                    <h4 class="mb-0" style="color: white;">
+                        <i class="fas fa-brain text-primary"></i> {{ role_name }} Daily Quiz
+                    </h4>
+                    <span class="badge bg-light text-dark">{{ questions|length }} Questions</span>
+                </div>
+                
+                <div class="card-body">
+                    <form id="quizForm">
+                        {% for q in questions %}
+                        <div class="question-block mb-5" id="q-block-{{ q.id }}">
+                            <h5 class="mb-3" style="color: white; line-height: 1.5;">
+                                <strong>Q{{ loop.index }}.</strong> {{ q.question }}
+                            </h5>
+                            
+                            <div class="options-list">
+                                {% for option in q.options %}
+                                <label class="d-block p-2 mb-2 rounded" style="cursor: pointer; background: rgba(51, 65, 85, 0.3); border: 1px solid transparent; transition: all 0.2s;">
+                                    <input type="radio" name="q{{ q.id }}" value="{{ option }}" class="form-check-input me-2" style="transform: scale(1.2);">
+                                    <span style="font-size: 1.05rem; color: #e2e8f0;">{{ option }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% if not loop.last %}<hr style="border-color: #334155;">{% endif %}
+                        {% endfor %}
+                        
+                        <div class="text-center mt-4">
+                            <button type="button" class="btn btn-primary btn-lg px-5" onclick="submitQuiz()">
+                                Submit Answers <i class="fas fa-rocket ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Results Section (Hidden initially) -->
+                    <div id="resultsSection" style="display: none;">
+                        <div class="text-center mb-4">
+                            <h2 class="display-4" id="finalScore" style="color: #10b981; font-weight: bold;">0%</h2>
+                            <p class="lead" style="color: white;">Your Score</p>
+                            <p id="scoreText" style="color: #94a3b8;"></p>
+                        </div>
+                        
+                        <div id="reviewSection" class="mt-4">
+                            <!-- Review will be injected here -->
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <a href="{{ url_for('job_recommendations') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-arrow-left"></i> Back to Recommendations
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitQuiz() {
+    const answers = {};
+    let allAnswered = true;
+
+    // Collect answers
+    document.querySelectorAll('.question-block').forEach((block) => {
+        const qId = block.id.replace('q-block-', '');
+        const selected = block.querySelector('input[type="radio"]:checked');
+        
+        if (selected) {
+            answers[qId] = selected.value;
+            block.style.borderLeft = 'none'; // Reset error styling
+        } else {
+            allAnswered = false;
+            block.style.borderLeft = '4px solid #ef4444'; // Highlight missing
+        }
+    });
+
+    if (!allAnswered) {
+        alert("Please answer all questions before submitting.");
+        return;
+    }
+
+    // Change button state
+    const btn = document.querySelector('button[onclick="submitQuiz()"]');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Evaluating...';
+    btn.disabled = true;
+
+    fetch('/check_job_quiz', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({answers: answers})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+            btn.innerHTML = 'Submit Answers <i class="fas fa-rocket ms-2"></i>';
+            btn.disabled = false;
+            return;
+        }
+
+        // Hide quiz form, show results
+        document.getElementById('quizForm').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'block';
+        
+        // Calculate percentage
+        const percentage = Math.round((data.score / data.total) * 100);
+        document.getElementById('finalScore').textContent = percentage + '%';
+        document.getElementById('scoreText').textContent = `You got ${data.score} out of ${data.total} questions correct.`;
+
+        // Color code score
+        if (percentage >= 80) document.getElementById('finalScore').style.color = '#10b981';
+        else if (percentage >= 50) document.getElementById('finalScore').style.color = '#f59e0b';
+        else document.getElementById('finalScore').style.color = '#ef4444';
+
+        // Build review section
+        let reviewHtml = '<h5 class="mb-3" style="color: white;">Detailed Review:</h5>';
+        
+        data.results.forEach((res, index) => {
+            const icon = res.is_correct ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-times-circle text-danger"></i>';
+            const borderColor = res.is_correct ? '#10b981' : '#ef4444';
+            
+            reviewHtml += `
+                <div class="card mb-3" style="background: rgba(30, 41, 59, 0.8); border-left: 4px solid ${borderColor};">
+                    <div class="card-body">
+                        <h6 style="color: white;">${icon} Q${index + 1}: ${res.question}</h6>
+                        <p style="margin-bottom: 5px; color: #cbd5e1;"><strong>Your Answer:</strong> ${res.user_answer}</p>
+                        ${!res.is_correct ? `<p style="margin-bottom: 5px; color: #10b981;"><strong>Correct Answer:</strong> ${res.correct_answer}</p>` : ''}
+                        <p style="margin-bottom: 0; font-size: 0.9rem; color: #94a3b8;"><em>${res.explanation}</em></p>
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('reviewSection').innerHTML = reviewHtml;
+    })
+    .catch(err => {
+        console.error(err);
+        alert("An error occurred while submitting the quiz.");
+        btn.innerHTML = 'Submit Answers <i class="fas fa-rocket ms-2"></i>';
+        btn.disabled = false;
+    });
+}
+
+// Add hover effect to options
+document.querySelectorAll('.options-list label').forEach(label => {
+    label.addEventListener('mouseenter', () => {
+        label.style.background = 'rgba(139, 92, 246, 0.2)';
+        label.style.borderColor = '#8b5cf6';
+    });
+    label.addEventListener('mouseleave', () => {
+        if (!label.querySelector('input').checked) {
+            label.style.background = 'rgba(51, 65, 85, 0.3)';
+            label.style.borderColor = 'transparent';
+        }
+    });
+    label.addEventListener('click', () => {
+        // Reset all in this group
+        const name = label.querySelector('input').name;
+        document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+            input.closest('label').style.background = 'rgba(51, 65, 85, 0.3)';
+            input.closest('label').style.borderColor = 'transparent';
+        });
+        // Highlight selected
+        label.style.background = 'rgba(139, 92, 246, 0.4)';
+        label.style.borderColor = '#8b5cf6';
+    });
+});
+</script>
+{% endblock %}

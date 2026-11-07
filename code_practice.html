@@ -1,0 +1,367 @@
+﻿{% extends "base.html" %}
+{% block content %}
+<style>
+    /* Custom Dark Theme for Coding Practice */
+    .cp-wrapper {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #e2e8f0;
+    }
+    .cp-header-title {
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 1.8rem;
+        margin-bottom: 0.2rem;
+    }
+    .cp-header-subtitle {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+    }
+    
+    /* Sidebar */
+    .cp-sidebar {
+        background: #1e293b;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        overflow: hidden;
+    }
+    .cp-sidebar-header {
+        background: #2563eb;
+        color: white;
+        padding: 15px;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    .cp-problem-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .cp-problem-item {
+        padding: 15px;
+        border-bottom: 1px solid #334155;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .cp-problem-item:hover {
+        background: #334155;
+    }
+    .cp-problem-item.active {
+        background: #2563eb;
+        border-left: 4px solid #60a5fa;
+    }
+    .cp-problem-item.active .cp-problem-title { color: white; }
+    .cp-problem-item.active .cp-problem-diff { color: #bfdbfe; }
+    
+    .cp-problem-title {
+        color: #f8fafc;
+        font-size: 0.95rem;
+        font-weight: 500;
+        margin-bottom: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .cp-problem-diff {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        text-transform: capitalize;
+    }
+    .badge-new {
+        background: #e2e8f0;
+        color: #0f172a;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    /* Main Content Area */
+    .cp-main {
+        background: #1e293b;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    .cp-content-header {
+        background: #06b6d4; /* Cyan matching your screenshot */
+        color: #0f172a;
+        padding: 15px 20px;
+        font-weight: 700;
+        font-size: 1.2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .cp-content-body {
+        padding: 20px;
+    }
+    
+    .cp-section-title {
+        color: #f8fafc;
+        font-weight: 600;
+        margin-bottom: 10px;
+        font-size: 1rem;
+    }
+    .cp-statement {
+        color: #cbd5e1;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 20px;
+    }
+    
+    .cp-io-box {
+        background: #0f172a;
+        padding: 12px;
+        border-radius: 8px;
+        font-family: monospace;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        margin-bottom: 20px;
+    }
+    .cp-io-label {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+    }
+    
+    /* Code Editor */
+    .cp-editor-header {
+        background: #10b981;
+        color: white;
+        padding: 10px 20px;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .cp-editor-select {
+        background: #064e3b;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    .cp-textarea {
+        width: 100%;
+        background: #0f172a;
+        color: #a5f3fc;
+        border: none;
+        padding: 20px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 1rem;
+        min-height: 250px;
+        resize: vertical;
+    }
+    .cp-textarea:focus {
+        outline: none;
+    }
+    
+    .cp-footer {
+        padding: 15px 20px;
+        background: #1e293b;
+        border-top: 1px solid #334155;
+        text-align: right;
+    }
+    .btn-run {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 6px;
+        font-weight: 600;
+        transition: 0.3s;
+    }
+    .btn-run:hover {
+        background: #1d4ed8;
+    }
+    .output-box {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #334155;
+        font-family: monospace;
+        white-space: pre-wrap;
+        display: none;
+        margin-top: 15px;
+    }
+</style>
+
+<div class="container cp-wrapper py-4">
+    <!-- Header -->
+    <div>
+        <div class="cp-header-title"><i class="fas fa-code me-2"></i> Daily 5 Coding Practices</div>
+        <div class="cp-header-subtitle">Date: {{ today }} | Complete all 5 to maintain your streak!</div>
+    </div>
+
+    <div class="row">
+        <!-- Left Sidebar (Question List) -->
+        <div class="col-md-3">
+            <div class="cp-sidebar">
+                <div class="cp-sidebar-header">Today's Problems</div>
+                <ul class="cp-problem-list" id="problemList">
+                    {% for p in problems %}
+                    <li class="cp-problem-item {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}" onclick="loadProblem({{ loop.index0 }})">
+                        <div class="cp-problem-title">
+                            <span>{{ loop.index }}. {{ p.title[:25] }}...</span>
+                            <span class="badge-new">New</span>
+                        </div>
+                        <div class="cp-problem-diff">{{ p.difficulty }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Right Main Content -->
+        <div class="col-md-9">
+            <!-- Problem Details Card -->
+            <div class="cp-main">
+                <div class="cp-content-header" id="problemHeader">
+                    <span id="problemTitle">Loading...</span>
+                    <span class="badge" id="problemDifficulty" style="background: #1e293b; color: white;">Easy</span>
+                </div>
+                <div class="cp-content-body">
+                    <div class="cp-section-title">Problem Statement</div>
+                    <p class="cp-statement" id="problemStatement"></p>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="cp-section-title">Sample Input</div>
+                            <div class="cp-io-box">
+                                <div class="cp-io-label">Input:</div>
+                                <div id="sampleInput"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="cp-section-title">Sample Output</div>
+                            <div class="cp-io-box">
+                                <div class="cp-io-label">Output:</div>
+                                <div id="sampleOutput"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cp-section-title">Constraints</div>
+                    <p class="cp-statement" id="constraints"></p>
+                </div>
+            </div>
+
+            <!-- Code Editor Card -->
+            <div class="cp-main">
+                <div class="cp-editor-header">
+                    <span>Your Code</span>
+                    <select class="cp-editor-select" id="languageSelect">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                    </select>
+                </div>
+                <textarea class="cp-textarea" id="codeEditor" spellcheck="false"></textarea>
+                <div class="cp-footer">
+                    <button class="btn-run" onclick="submitCode()">Run Code</button>
+                </div>
+            </div>
+
+            <!-- Output Area -->
+            <div class="output-box" id="outputBox"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Pass Python data to JavaScript safely -->
+<script>
+    const problemsData = {{ problems|tojson }};
+    let currentProblemIndex = 0;
+
+    function loadProblem(index) {
+        currentProblemIndex = index;
+        const p = problemsData[index];
+        
+        // Update Sidebar
+        document.querySelectorAll('.cp-problem-item').forEach((el, i) => {
+            if (i === index) el.classList.add('active');
+            else el.classList.remove('active');
+        });
+
+        // Update Main Content
+        document.getElementById('problemTitle').innerText = p.title;
+        document.getElementById('problemDifficulty').innerText = p.difficulty;
+        document.getElementById('problemStatement').innerText = p.statement;
+        document.getElementById('sampleInput').innerText = p.sample_input;
+        document.getElementById('sampleOutput').innerText = p.sample_output;
+        document.getElementById('constraints').innerText = p.constraints;
+        
+        // Reset output
+        document.getElementById('outputBox').style.display = 'none';
+        
+        // Set starter code based on language
+        updateStarterCode();
+    }
+
+    function updateStarterCode() {
+        const lang = document.getElementById('languageSelect').value;
+        const p = problemsData[currentProblemIndex];
+        
+        if (lang === 'python') {
+            document.getElementById('codeEditor').value = `# Problem: ${p.title}\n\n${p.starter_code}`;
+        } else {
+            document.getElementById('codeEditor').value = `// Problem: ${p.title}\n\nfunction solve() {\n    // Write your code here\n}`;
+        }
+    }
+
+    document.getElementById('languageSelect').addEventListener('change', updateStarterCode);
+
+    // Initialize first problem
+    if (problemsData.length > 0) {
+        loadProblem(0);
+    } else {
+        document.getElementById('problemTitle').innerText = "No problems loaded. Please check your JSON file.";
+    }
+
+    function submitCode() {
+        const code = document.getElementById('codeEditor').value;
+        const lang = document.getElementById('languageSelect').value;
+        const p = problemsData[currentProblemIndex];
+        
+        const outputBox = document.getElementById('outputBox');
+        outputBox.style.display = 'block';
+        outputBox.innerHTML = `<span style="color: #facc15;">Running...</span>`;
+
+        fetch('/submit_daily_code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                problem_id: p.id,
+                problem: p,
+                language: lang,
+                code: code
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                outputBox.innerHTML = `<span style="color: #ef4444;">Error: ${data.error}</span>`;
+                return;
+            }
+            
+            let resultHtml = '';
+            if (data.status === 'Passed') {
+                resultHtml = `<div style="color: #10b981; font-weight: bold; margin-bottom: 10px;">✅ Test Cases Passed: ${data.passed}/${data.total}</div>`;
+            } else {
+                resultHtml = `<div style="color: #ef4444; font-weight: bold; margin-bottom: 10px;">❌ Test Cases Passed: ${data.passed}/${data.total}</div>`;
+            }
+            
+            resultHtml += `<div style="color: #94a3b8; font-size: 0.9rem;">Output:</div>`;
+            resultHtml += `<div style="color: #e2e8f0;">${data.output}</div>`;
+            
+            outputBox.innerHTML = resultHtml;
+        })
+        .catch(err => {
+            outputBox.innerHTML = `<span style="color: #ef4444;">Execution failed. Please check console.</span>`;
+        });
+    }
+</script>
+{% endblock %}

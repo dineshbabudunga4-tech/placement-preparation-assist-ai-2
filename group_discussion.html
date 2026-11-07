@@ -1,0 +1,99 @@
+﻿{% extends "base.html" %}
+{% block content %}
+<!-- ... (Keep your existing header HTML) ... -->
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-day"></i> Topic for {{ date }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info" style="font-size: 1.1rem; font-weight: 500;">
+                    {{ topic }}
+                </div>
+                <p class="text-muted small">
+                    <i class="fas fa-building"></i> Customized for: <strong>{{ company }}</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-pen"></i> Your Response</h5>
+            </div>
+            <div class="card-body">
+                <textarea id="gdResponse" class="form-control mb-3" rows="10" placeholder="Type your arguments here..."></textarea>
+                <button id="submitGD" class="btn btn-primary btn-lg w-100">
+                    <i class="fas fa-paper-plane"></i> Submit & Evaluate
+                </button>
+                <div id="gdResult" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden data to pass to JS -->
+<div id="gdData" data-topic="{{ topic }}" data-target-text="{{ target_text }}" style="display:none;"></div>
+
+<script>
+document.getElementById('submitGD').addEventListener('click', function() {
+    const response = document.getElementById('gdResponse').value.trim();
+    const topic = document.getElementById('gdData').dataset.topic;
+    const targetText = document.getElementById('gdData').dataset.targetText;
+    const resultDiv = document.getElementById('gdResult');
+    
+    if(!response) { alert("Please write a response first!"); return; }
+    
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Evaluating...';
+    
+    fetch('/evaluate_gd', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({topic: topic, response: response, target_text: targetText})
+    })
+    .then(res => res.json())
+    .then(data => {
+        this.disabled = false;
+        this.innerHTML = '<i class="fas fa-paper-plane"></i> Submit & Evaluate';
+        
+        // Handle the Gibberish Error Cleanly
+        if(data.error || (data.overall_score === 0 && data.comm_feedback.includes('❌'))) { 
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <h5>${data.comm_feedback}</h5>
+                </div>
+            `; 
+            return; 
+        }
+        
+        resultDiv.innerHTML = `
+            <div class="card">
+                <div class="card-header bg-info text-white">ML Evaluation</div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <h3 class="text-primary">${data.communication_score}</h3>
+                            <small>Comm.</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-warning">${data.grammar_score}</h3>
+                            <small>Structure</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-success">${data.confidence_score}</h3>
+                            <small>Relevance (ML)</small>
+                        </div>
+                    </div>
+                    <h5 class="text-center">Overall: ${data.overall_score}/100</h5>
+                    <p class="mt-2 text-center small">${data.comm_feedback}</p>
+                </div>
+            </div>
+        `;
+    });
+});
+</script>
+{% endblock %}

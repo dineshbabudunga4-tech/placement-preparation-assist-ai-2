@@ -1,0 +1,93 @@
+﻿{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Placement Readiness Meter</h2>
+    
+    <!-- Overall Score -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white text-center">
+            <h5 class="mb-0">Overall Readiness</h5>
+        </div>
+        <div class="card-body text-center">
+            <h1 class="display-3 fw-bold {% if readiness.overall >= 80 %}text-success{% elif readiness.overall >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                {{ readiness.overall }}%
+            </h1>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar {% if readiness.overall >= 80 %}bg-success{% elif readiness.overall >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                     role="progressbar" 
+                     style="width: {{ readiness.overall }}%">
+                </div>
+            </div>
+            <h4>Status: 
+                <span class="badge {% if readiness.level == 'Excellent' %}bg-success{% elif readiness.level == 'Good' %}bg-warning{% else %}bg-danger{% endif %}">
+                    {{ readiness.level }}
+                </span>
+            </h4>
+        </div>
+    </div>
+
+    <!-- Sub Scores -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-info">
+                <div class="card-header bg-info text-white">Coding</div>
+                <div class="card-body">
+                    <h2 class="text-info">{{ readiness.coding }}%</h2>
+                    <div class="progress"><div class="progress-bar bg-info" style="width: {{ readiness.coding }}%"></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-success">
+                <div class="card-header bg-success text-white">Interview</div>
+                <div class="card-body">
+                    <h2 class="text-success">{{ readiness.interview }}%</h2>
+                    <div class="progress"><div class="progress-bar bg-success" style="width: {{ readiness.interview }}%"></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-warning">
+                <div class="card-header bg-warning text-dark">Aptitude</div>
+                <div class="card-body">
+                    <h2 class="text-warning">{{ readiness.aptitude }}%</h2>
+                    <div class="progress"><div class="progress-bar bg-warning" style="width: {{ readiness.aptitude }}%"></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-danger">
+                <div class="card-header bg-danger text-white">Resume</div>
+                <div class="card-body">
+                    <h2 class="text-danger">{{ readiness.resume }}%</h2>
+                    <div class="progress"><div class="progress-bar bg-danger" style="width: {{ readiness.resume }}%"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="card shadow">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Recommendations</h5>
+        </div>
+        <div class="card-body">
+            <ul>
+                {% if readiness.coding < 50 %}
+                <li>Practice more coding problems on LeetCode (aim for 50+ problems).</li>
+                {% endif %}
+                {% if readiness.interview < 50 %}
+                <li>Take more mock interviews - at least 5 full sessions.</li>
+                {% endif %}
+                {% if readiness.aptitude < 60 %}
+                <li>Solve more aptitude questions in the Aptitude section.</li>
+                {% endif %}
+                {% if readiness.resume < 60 %}
+                <li>Add more relevant skills and projects to your resume.</li>
+                {% endif %}
+                <li>Keep track of your progress in the Analytics Dashboard.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

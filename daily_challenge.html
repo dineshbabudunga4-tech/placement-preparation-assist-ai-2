@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .editor-container {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #333;
+    }
+    .editor-header {
+        background-color: #2d2d2d;
+        padding: 8px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #333;
+    }
+    .editor-textarea {
+        width: 100%;
+        min-height: 400px;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        border: none;
+        padding: 15px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 14px;
+        resize: vertical;
+    }
+    .editor-textarea:focus {
+        outline: none;
+    }
+    .output-box {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 15px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 14px;
+        min-height: 150px;
+        white-space: pre-wrap;
+    }
+    .problem-desc {
+        background-color: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 20px;
+        height: 100%;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div>
+            <h2 class="mb-0"><i class="fas fa-calendar-alt text-warning me-2"></i> Today's Coding Challenge</h2>
+            <p class="text-muted mb-0">{{ today }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('coding_leaderboard') }}" class="btn btn-outline-warning me-2"><i class="fas fa-trophy"></i> Leaderboard</a>
+            <a href="{{ url_for('my_daily_submissions') }}" class="btn btn-outline-info"><i class="fas fa-history"></i> My Submissions</a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Side: Problem Description -->
+        <div class="col-md-5">
+            <div class="problem-desc shadow">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="mb-0 text-light">{{ problem.title }}</h3>
+                    <span class="badge bg-{{ 'success' if problem.difficulty == 'Easy' else 'warning' if problem.difficulty == 'Medium' else 'danger' }} fs-6">
+                        {{ problem.difficulty }}
+                    </span>
+                </div>
+                <hr class="border-secondary">
+                <h5 class="text-light">Problem Statement:</h5>
+                <p class="text-light mb-4">{{ problem.statement }}</p>
+                
+                <h6 class="text-light">Sample Input:</h6>
+                <div class="bg-dark p-2 rounded mb-3 border border-secondary">
+                    <code class="text-info">{{ problem.sample_input }}</code>
+                </div>
+                
+                <h6 class="text-light">Sample Output:</h6>
+                <div class="bg-dark p-2 rounded mb-3 border border-secondary">
+                    <code class="text-success">{{ problem.sample_output }}</code>
+                </div>
+                
+                <h6 class="text-light">Constraints:</h6>
+                <p class="text-muted small">{{ problem.constraints }}</p>
+                
+                {% if existing %}
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-check-circle"></i> You have already submitted today's challenge.<br>
+                    <strong>Score:</strong> {{ existing.score }}% ({{ existing.passed }}/{{ existing.total }} passed)<br>
+                    <small>Submitted at {{ existing.submitted_at.strftime('%H:%M') }}</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Side: Code Editor -->
+        <div class="col-md-7">
+            <div class="editor-container shadow">
+                <div class="editor-header">
+                    <div class="text-light d-flex align-items-center gap-2">
+                        <i class="fas fa-code text-primary"></i> Code Editor
+                    </div>
+                    <div class="d-flex gap-2">
+                        <select id="languageSelect" class="form-select form-select-sm bg-dark text-light border-secondary" style="width: 130px;">
+                            <option value="python">Python 3</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="java">Java</option>
+                            <option value="cpp">C++</option>
+                        </select>
+                        <button id="runBtn" class="btn btn-sm btn-success"><i class="fas fa-play"></i> Run</button>
+                        <button id="submitBtn" class="btn btn-sm btn-warning text-dark"><i class="fas fa-paper-plane"></i> Submit</button>
+                    </div>
+                </div>
+                
+                <textarea id="codeEditor" class="editor-textarea" placeholder="# Write your code here..."></textarea>
+                
+                <div class="p-3 border-top border-secondary bg-dark">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 text-light"><i class="fas fa-terminal"></i> Output Console</h6>
+                    </div>
+                    <div id="outputBox" class="output-box">
+                        Ready to run code...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const editor = document.getElementById('codeEditor');
+    const languageSelect = document.getElementById('languageSelect');
+    const runBtn = document.getElementById('runBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const outputBox = document.getElementById('outputBox');
+
+    const problemId = {{ problem.id }};
+
+    // Load starter code based on language
+    const starterCode = {
+        python: `# Write your solution here\ndef solve():\n    pass\n\nsolve()`,
+        javascript: `// Write your solution here\nfunction solve() {\n    \n}\n\nsolve();`,
+        java: `// Write your solution here\npublic class Main {\n    public static void main(String[] args) {\n        \n    }\n}`,
+        cpp: `// Write your solution here\n#include <iostream>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}`
+    };
+
+    function setEditorCode() {
+        const lang = languageSelect.value;
+        editor.value = starterCode[lang] || '';
+    }
+
+    setEditorCode();
+
+    languageSelect.addEventListener('change', setEditorCode);
+
+    // --- RUN BUTTON LOGIC ---
+    runBtn.addEventListener('click', async () => {
+        const code = editor.value;
+        if (!code.trim()) {
+            outputBox.innerHTML = '<span class="text-danger">Please write some code first.</span>';
+            return;
+        }
+
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+        outputBox.innerHTML = '<span class="text-info">Executing...</span>';
+
+        try {
+            const response = await fetch('/run_daily_code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, language: languageSelect.value })
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                outputBox.innerHTML = `<span class="text-danger">Error:\n${data.error}</span>`;
+            } else {
+                outputBox.innerHTML = `<span class="text-success">Output:\n${data.output}</span>`;
+            }
+        } catch (err) {
+            outputBox.innerHTML = `<span class="text-danger">Failed to run code: ${err.message}</span>`;
+        } finally {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<i class="fas fa-play"></i> Run';
+        }
+    });
+
+    // --- SUBMIT BUTTON LOGIC ---
+    submitBtn.addEventListener('click', async () => {
+        const code = editor.value;
+        if (!code.trim()) {
+            outputBox.innerHTML = '<span class="text-danger">Please write some code first.</span>';
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
+        outputBox.innerHTML = '<span class="text-info">Testing against hidden test cases...</span>';
+
+        try {
+            const response = await fetch('/submit_daily_challenge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    code: code, 
+                    language: languageSelect.value, 
+                    problem_id: problemId 
+                })
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                outputBox.innerHTML = `<span class="text-danger">Error:\n${data.error}</span>`;
+            } else {
+                let color = data.score === 100 ? 'success' : (data.score > 0 ? 'warning' : 'danger');
+                outputBox.innerHTML = `
+                    <div class="text-${color} fw-bold mb-2">Score: ${data.score}%</div>
+                    <div class="text-light">${data.message}</div>
+                    <hr class="border-secondary">
+                    <div class="text-muted small">${data.output}</div>
+                `;
+                
+                // Reload page after 3 seconds to update the "already submitted" status
+                if (data.score >= 0) {
+                    setTimeout(() => window.location.reload(), 3000);
+                }
+            }
+        } catch (err) {
+            outputBox.innerHTML = `<span class="text-danger">Failed to submit code: ${err.message}</span>`;
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
+        }
+    });
+});
+</script>
+{% endblock %}
